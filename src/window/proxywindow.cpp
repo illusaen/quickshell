@@ -243,7 +243,7 @@ void ProxyWindowBase::completeWindow() {
 	this->mContentItem->setWidth(this->width());
 	this->mContentItem->setHeight(this->height());
 
-	// without this the dangling screen pointer wont be updated to a real screen
+	// without this the dangling screen pointer won't be updated to a real screen
 	emit this->screenChanged();
 }
 
@@ -612,9 +612,11 @@ void ProxyWindowAttached::setWindow(ProxyWindowBase* window) {
 	emit this->windowChanged();
 }
 
-ProxiedWindow::ProxiedWindow(ProxyWindowBase* proxy, QWindow* parent)
-    : QQuickWindow(parent)
-    , mProxy(proxy) {
+namespace {
+QList<std::function<void(QQuickWindow*)>> SCENEGRAPH_INIT_CALLBACKS; // NOLINT
+}
+
+QsQuickWindowBase::QsQuickWindowBase(QWindow* parent): QQuickWindow(parent) {
 	QObject::connect(
 	    this,
 	    &QQuickWindow::sceneGraphInitialized,
@@ -623,20 +625,16 @@ ProxiedWindow::ProxiedWindow(ProxyWindowBase* proxy, QWindow* parent)
 	);
 }
 
-namespace {
-QList<std::function<void(QQuickWindow*)>> SCENEGRAPH_INIT_CALLBACKS; // NOLINT
-}
-
-void ProxiedWindow::callOnScenegraphInit(std::function<void(QQuickWindow*)> cb) { // NOLINT
-	SCENEGRAPH_INIT_CALLBACKS.emplaceBack(cb);
-}
-
-void ProxiedWindow::onSceneGraphInitialized() {
+void QsQuickWindowBase::onSceneGraphInitialized() {
 	for (auto& cb: SCENEGRAPH_INIT_CALLBACKS) {
 		cb(this);
 	}
 
 	SCENEGRAPH_INIT_CALLBACKS.clear();
+}
+
+void QsQuickWindowBase::callOnScenegraphInit(std::function<void(QQuickWindow*)> cb) { // NOLINT
+	SCENEGRAPH_INIT_CALLBACKS.emplaceBack(cb);
 }
 
 bool ProxiedWindow::event(QEvent* event) {
